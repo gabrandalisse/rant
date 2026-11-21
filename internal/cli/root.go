@@ -163,6 +163,10 @@ func newShellInitCmd() *cobra.Command {
 		Use:   "shell-init",
 		Short: "Imprime la configuración para evitar guardar comandos en el historial",
 		Run: func(cmd *cobra.Command, args []string) {
+			if runtime.GOOS == "windows" {
+				fmt.Fprintln(cmd.OutOrStdout(), "Set-PSReadLineOption -AddToHistoryHandler { param($line); return -not ($line -match '^\\s*rant\\b') }")
+				return
+			}
 			fmt.Fprintln(cmd.OutOrStdout(), "setopt HIST_IGNORE_SPACE 2>/dev/null || HISTCONTROL=ignorespace")
 			fmt.Fprintln(cmd.OutOrStdout(), "alias rant=' rant'")
 		},

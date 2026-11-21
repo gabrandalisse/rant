@@ -27,7 +27,22 @@ try {
         [Environment]::SetEnvironmentVariable("Path", "$UserPath;$InstallDir", "User")
     }
 
-    Write-Host "Instalado en $InstallDir\$Binary. Reiniciá la terminal para usar 'rant'."
+    $ProfileDir = Split-Path -Parent $PROFILE
+    if (!(Test-Path $ProfileDir)) {
+        New-Item -ItemType Directory -Path $ProfileDir -Force | Out-Null
+    }
+    if (!(Test-Path $PROFILE)) {
+        New-Item -ItemType File -Path $PROFILE -Force | Out-Null
+    }
+
+    $HookLine = 'Set-PSReadLineOption -AddToHistoryHandler { param($line); return -not ($line -match ''^\s*rant\b'') }'
+    $CurrentProfile = Get-Content $PROFILE -Raw -ErrorAction SilentlyContinue
+    if ($CurrentProfile -notlike "*Set-PSReadLineOption*rant*") {
+        Add-Content -Path $PROFILE -Value "`n# Evitar guardar comandos rant en el historial`n$HookLine"
+        Write-Host "Protección de historial agregada en $PROFILE"
+    }
+
+    Write-Host "Instalado en $InstallDir\$Binary. Reiniciá la terminal para aplicar los cambios."
 } finally {
     Remove-Item -Recurse -Force $TmpDir -ErrorAction SilentlyContinue
 }

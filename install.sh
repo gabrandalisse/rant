@@ -30,6 +30,21 @@ INSTALL_DIR="${HOME}/.local/bin"
 mkdir -p "$INSTALL_DIR"
 install -m 755 "${TMP_DIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
 
+HOOK_LINE='command -v rant >/dev/null 2>&1 && eval "$(rant shell-init)"'
+
+configure_rc() {
+  RC_FILE="$1"
+  if [ -f "$RC_FILE" ]; then
+    if ! grep -Fq "rant shell-init" "$RC_FILE"; then
+      printf '\n# Evitar guardar comandos rant en el historial\n%s\n' "$HOOK_LINE" >> "$RC_FILE"
+      echo "Protección de historial agregada en ${RC_FILE}"
+    fi
+  fi
+}
+
+configure_rc "${HOME}/.zshrc"
+configure_rc "${HOME}/.bashrc"
+
 echo "Instalado en ${INSTALL_DIR}/${BINARY}"
 case ":$PATH:" in
   *":${INSTALL_DIR}:"*) ;;
