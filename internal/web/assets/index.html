@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>rant — Observabilidad de Fricción</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --l0: #161b22;
+      --l1: #491d24;
+      --l2: #7d242d;
+      --l3: #b62b36;
+      --l4: #f85149;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      padding: 24px;
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    h1 { font-size: 1.25rem; letter-spacing: 0.5px; }
+    h1 span { color: var(--l4); }
+    button {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.85rem;
+    }
+    button:hover { border-color: var(--l4); }
+    button.active { background: var(--l1); border-color: var(--l4); }
+    .kpis {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .card-label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; margin-bottom: 6px; }
+    .card-value { font-size: 1.6rem; font-weight: 700; }
+    .section-title { font-size: 0.9rem; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; }
+    .heatmap-wrapper { overflow-x: auto; padding-bottom: 8px; }
+    .heatmap {
+      display: grid;
+      grid-template-rows: repeat(7, 13px);
+      grid-auto-flow: column;
+      gap: 3px;
+      width: max-content;
+    }
+    .cell {
+      width: 13px;
+      height: 13px;
+      border-radius: 2px;
+      background: var(--l0);
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .grid-two {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 24px 0;
+    }
+    @media (max-width: 768px) { .grid-two { grid-template-columns: 1fr; } }
+    .tag-row { margin-bottom: 10px; }
+    .tag-meta { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 4px; }
+    .bar-bg { background: var(--bg); height: 8px; border-radius: 4px; overflow: hidden; }
+    .bar-fill { background: var(--l4); height: 100%; border-radius: 4px; }
+    .matrix {
+      display: grid;
+      grid-template-columns: 42px repeat(24, 1fr);
+      gap: 2px;
+      align-items: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    .m-cell { height: 16px; border-radius: 2px; background: var(--bg); }
+    .feed { display: flex; flex-direction: column; gap: 12px; }
+    .rant-item {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--l4);
+      border-radius: 6px;
+      padding: 14px;
+    }
+    .rant-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .rant-tags span {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      color: var(--text);
+    }
+    .rant-body {
+      white-space: pre-wrap;
+      line-height: 1.45;
+      font-size: 0.92rem;
+      transition: filter 0.15s ease;
+    }
+    body.censored .rant-body { filter: blur(6px); user-select: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>&gt;_</span> rant // observabilidad local</h1>
+    <button id="blurBtn" type="button">Modo Censura: OFF</button>
+  </header>
+
+  <section class="kpis">
+    <div class="card">
+      <div class="card-label">Total Descargos</div>
+      <div class="card-value" id="kpiTotal">-</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Severidad Promedio</div>
+      <div class="card-value" id="kpiAvg">-</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Día Más Crítico</div>
+      <div class="card-value" id="kpiDay">-</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Hora Pico</div>
+      <div class="card-value" id="kpiHour">-</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="section-title">Heatmap de Paciencia (Últimas 26 semanas)</div>
+    <div class="heatmap-wrapper">
+      <div class="heatmap" id="heatmap"></div>
+    </div>
+  </section>
+
+  <section class="grid-two">
+    <div class="card">
+      <div class="section-title">Top Triggers (Tags por Impacto)</div>
+      <div id="tagsList"></div>
+    </div>
+    <div class="card">
+      <div class="section-title">Matriz Día / Hora</div>
+      <div class="matrix" id="matrix"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Historial Descifrado en Memoria</div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <script>
+    const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token") || "";
+
+    const blurBtn = document.getElementById("blurBtn");
+    blurBtn.addEventListener("click", () => {
+      document.body.classList.toggle("censored");
+      const active = document.body.classList.contains("censored");
+      blurBtn.classList.toggle("active", active);
+      blurBtn.textContent = active ? "Modo Censura: ON" : "Modo Censura: OFF";
+    });
+
+    window.addEventListener("pagehide", () => {
+      navigator.sendBeacon(`/api/shutdown?token=${encodeURIComponent(token)}`);
+    });
+
+    function heatColor(score) {
+      if (!score || score <= 0) return "var(--l0)";
+      if (score <= 3) return "var(--l1)";
+      if (score <= 6) return "var(--l2)";
+      if (score <= 10) return "var(--l3)";
+      return "var(--l4)";
+    }
+
+    function renderHeatmap(dailySeverity) {
+      const container = document.getElementById("heatmap");
+      container.innerHTML = "";
+      const today = new Date();
+      const totalDays = 26 * 7;
+      const start = new Date(today);
+      start.setDate(today.getDate() - totalDays + 1);
+      start.setDate(start.getDate() - start.getDay());
+
+      for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
+        const iso = d.toISOString().slice(0, 10);
+        const score = dailySeverity[iso] || 0;
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.style.background = heatColor(score);
+        cell.title = `${iso}: severidad acumulada ${score}`;
+        container.appendChild(cell);
+      }
+    }
+
+    function renderTags(topTags) {
+      const container = document.getElementById("tagsList");
+      container.innerHTML = "";
+      if (!topTags || topTags.length === 0) {
+        container.textContent = "Sin etiquetas registradas.";
+        return;
+      }
+      const maxScore = topTags[0].totalSeverity || 1;
+      topTags.slice(0, 8).forEach(item => {
+        const pct = Math.round((item.totalSeverity / maxScore) * 100);
+        const row = document.createElement("div");
+        row.className = "tag-row";
+        row.innerHTML = `
+          <div class="tag-meta">
+            <span>#${item.tag} (${item.count})</span>
+            <span>Impacto ${item.totalSeverity} · Prom ${item.avgSeverity.toFixed(1)}</span>
+          </div>
+          <div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function renderMatrix(matrix) {
+      const container = document.getElementById("matrix");
+      container.innerHTML = "<div></div>";
+      for (let h = 0; h < 24; h++) {
+        const lbl = document.createElement("div");
+        lbl.textContent = h % 4 === 0 ? `${h}h` : "";
+        container.appendChild(lbl);
+      }
+      for (let d = 0; d < 7; d++) {
+        const dayLbl = document.createElement("div");
+        dayLbl.textContent = DAYS[d];
+        container.appendChild(dayLbl);
+        for (let h = 0; h < 24; h++) {
+          const val = matrix[d][h] || 0;
+          const cell = document.createElement("div");
+          cell.className = "m-cell";
+          cell.style.background = heatColor(val);
+          cell.title = `${DAYS[d]} ${h}:00 — Severidad: ${val}`;
+          container.appendChild(cell);
+        }
+      }
+    }
+
+    function renderFeed(rants) {
+      const container = document.getElementById("feed");
+      container.innerHTML = "";
+      rants.forEach(item => {
+        const dateStr = new Date(item.CreatedAt).toLocaleString();
+        const tagsHtml = (item.Tags || []).map(t => `<span>#${t}</span>`).join("");
+        const el = document.createElement("div");
+        el.className = "rant-item";
+        el.innerHTML = `
+          <div class="rant-header">
+            <span>${dateStr} · Severidad ${item.Severity}/5</span>
+            <div class="rant-tags">${tagsHtml}</div>
+          </div>
+          <div class="rant-body"></div>
+        `;
+        el.querySelector(".rant-body").textContent = item.Content;
+        container.appendChild(el);
+      });
+    }
+
+    async function load() {
+      const res = await fetch("/api/dashboard", {
+        headers: { "X-Session-Token": token }
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      const m = data.metrics;
+
+      document.getElementById("kpiTotal").textContent = m.totalCount;
+      document.getElementById("kpiAvg").textContent = m.totalCount ? `${m.averageSeverity.toFixed(1)} / 5` : "-";
+      document.getElementById("kpiDay").textContent = m.totalCount ? DAYS[m.peakDayOfWeek] : "-";
+      document.getElementById("kpiHour").textContent = m.totalCount ? `${String(m.peakHourOfDay).padStart(2, "0")}:00` : "-";
+
+      renderHeatmap(m.dailySeverity || {});
+      renderTags(m.topTags || []);
+      renderMatrix(m.hourlyMatrix || []);
+      renderFeed(data.rants || []);
+    }
+
+    load();
+  </script>
+</body>
+</html>
