@@ -167,8 +167,12 @@ func newShellInitCmd() *cobra.Command {
 				fmt.Fprintln(cmd.OutOrStdout(), "Set-PSReadLineOption -AddToHistoryHandler { param($line); return -not ($line -match '^\\s*rant\\b') }")
 				return
 			}
-			fmt.Fprintln(cmd.OutOrStdout(), "setopt HIST_IGNORE_SPACE 2>/dev/null || HISTCONTROL=ignorespace")
-			fmt.Fprintln(cmd.OutOrStdout(), "alias rant=' rant'")
+			fmt.Fprintln(cmd.OutOrStdout(), `if [ -n "$ZSH_VERSION" ]; then`)
+			fmt.Fprintln(cmd.OutOrStdout(), `  zshaddhistory() { [[ $1 != rant\ * && $1 != rant ]]; }`)
+			fmt.Fprintln(cmd.OutOrStdout(), `else`)
+			fmt.Fprintln(cmd.OutOrStdout(), `  HISTCONTROL=ignorespace`)
+			fmt.Fprintln(cmd.OutOrStdout(), `  alias rant=' rant'`)
+			fmt.Fprintln(cmd.OutOrStdout(), `fi`)
 		},
 	}
 }

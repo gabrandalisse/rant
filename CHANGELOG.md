@@ -5,13 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-11-23
+
+### Changed
+- Use zshaddhistory hook in shell-init for zsh
+
 ## [1.1.0] - 2026-11-21
 
 ### Added
 - **Cross-Platform `shell-init`:** Updated `rant shell-init` to output native PowerShell `Set-PSReadLineOption` history-filtering rules on Windows alongside `HIST_IGNORE_SPACE` / `HISTCONTROL` rules on Unix shells.
 - **Automated History Protection on Install:** Updated `install.sh` and `install.ps1` to automatically and idempotently configure shell history exclusion (`~/.zshrc`, `~/.bashrc`, and PowerShell `$PROFILE`) during installation.
 
-### Changed 
+### Changed
 - Wording in the landing page
 
 
